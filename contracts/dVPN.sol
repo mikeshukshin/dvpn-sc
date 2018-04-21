@@ -22,9 +22,9 @@ contract dVPN {
 		return serverAddresses.length;
 	}
 
-	function getServer(uint index) public view returns(uint ip, uint port, uint256 pricePerHour){
+	function getServer(uint index) public view returns(address serverAddress, uint ip, uint port, uint256 pricePerHour){
 		assert(index < serverAddresses.length); // index out of boundaries
-		return (servers[serverAddresses[index]].ip, servers[serverAddresses[index]].port, servers[serverAddresses[index]].pricePerHour); // simplier?
+		return (serverAddresses[index], servers[serverAddresses[index]].ip, servers[serverAddresses[index]].port, servers[serverAddresses[index]].pricePerHour); // simplier?
 	}
 
 	function announceServer(uint ip, uint port, uint256 pricePerHour) public returns (uint){
@@ -43,5 +43,46 @@ contract dVPN {
 		serverAddresses[indexToDelete] = keyToMove;
 		servers[keyToMove].listPointer = indexToDelete;
 		serverAddresses.length--;
+	}
+
+
+	// connections stuff
+
+	struct Connection {
+		uint256 id;
+		address clientAddress;
+		address serverAddress;
+		uint256 pricePerHour;
+		uint startedAt;
+		uint endedAt;
+	}
+
+	mapping(uint256 => Connection) private connections;
+
+	function isConnected(uint256 connectionId) public view returns(bool){
+		return connections[connectionId].id != 0 && connections[connectionId].endedAt == 0;
+	}
+
+	function startConnection(uint256 connectionId, address serverAddress) public{
+		assert(serverAnnounced(serverAddress)); // server isn't announced
+		assert(!isConnected(connectionId)); // connection exists
+
+		connections[connectionId] = Connection(
+			connectionId,
+			tx.origin,
+			serverAddress,
+			servers[serverAddress].pricePerHour,
+			block.timestamp,
+			0
+		);
+	}
+
+	function stopConnection(uint256 connectionId) public returns (uint){
+		assert(isConnected(connectionId)); // connection doesn't exist
+		assert(connections[connectionId].endedAt == 0); //connection has not ended
+		assert(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
+
+		connections[connectionId].endedAt = block.timestamp;
+		return connections[connectionId].endedAt - connections[connectionId].startedAt;
 	}
 }
