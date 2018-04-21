@@ -1,8 +1,9 @@
 pragma solidity ^0.4.18;
 
 //import "./ConvertLib.sol";
+import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 
-contract dVPN {
+contract dVPN is Ownable{
 	struct Server {
 		uint ip;
 		uint port;
@@ -23,18 +24,18 @@ contract dVPN {
 	}
 
 	function getServer(uint index) public view returns(address serverAddress, uint ip, uint port, uint256 pricePerHour){
-		assert(index < serverAddresses.length); // index out of boundaries
+		require(index < serverAddresses.length); // index out of boundaries
 		return (serverAddresses[index], servers[serverAddresses[index]].ip, servers[serverAddresses[index]].port, servers[serverAddresses[index]].pricePerHour); // simplier?
 	}
 
 	function announceServer(uint ip, uint port, uint256 pricePerHour) public returns (uint){
-		assert(!serverAnnounced(tx.origin)); // server already announced
+		require(!serverAnnounced(tx.origin)); // server already announced
 		servers[tx.origin] = Server(ip, port, pricePerHour, serverAddresses.push(tx.origin) - 1);
 		return serverAddresses.length;
 	}
 
 	function deannounceServer() public{
-		assert(serverAnnounced(tx.origin)); // server isn't announced
+		require(serverAnnounced(tx.origin)); // server isn't announced
 
 		uint indexToDelete = servers[tx.origin].listPointer;
 		address keyToMove = serverAddresses[serverAddresses.length-1];
@@ -64,8 +65,8 @@ contract dVPN {
 	}
 
 	function startConnection(uint256 connectionId, address serverAddress) public{
-		assert(serverAnnounced(serverAddress)); // server isn't announced
-		assert(!isConnected(connectionId)); // connection exists
+		require(serverAnnounced(serverAddress)); // server isn't announced
+		require(!isConnected(connectionId)); // connection exists
 
 		connections[connectionId] = Connection(
 			connectionId,
@@ -78,9 +79,9 @@ contract dVPN {
 	}
 
 	function stopConnection(uint256 connectionId) public returns (uint){
-		assert(isConnected(connectionId)); // connection doesn't exist
-		assert(connections[connectionId].endedAt == 0); //connection has not ended
-		assert(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
+		require(isConnected(connectionId)); // connection doesn't exist
+		require(connections[connectionId].endedAt == 0); //connection has not ended
+		require(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
 
 		connections[connectionId].endedAt = block.timestamp;
 		return connections[connectionId].endedAt - connections[connectionId].startedAt;
