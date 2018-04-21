@@ -86,4 +86,5 @@ contract dVPN is Ownable{
 		connections[connectionId].endedAt = block.timestamp;
 		return connections[connectionId].endedAt - connections[connectionId].startedAt;
 	}
+
 }
