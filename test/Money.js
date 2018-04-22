@@ -19,7 +19,7 @@ contract('Money', function (accounts) {
 
     it('should accept payments', async function () {
         await instance.sendTransaction({ value: value, from: clientAddress });
-        let balance = await instance.balanceOf(clientAddress);
+        let balance = await instance.balanceOf.call(clientAddress);
         const rate = new BigNumber(1000);
         const expectedValue = rate.mul(value);
         balance.should.be.bignumber.equal(expectedValue);

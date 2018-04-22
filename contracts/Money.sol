@@ -9,7 +9,7 @@ contract Money {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function () payable {
-        balances[msg.sender].add(msg.value);
+        balances[msg.sender] = balances[msg.sender].add(msg.value);
     }
 
     function withdraw () public {
