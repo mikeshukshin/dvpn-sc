@@ -64,6 +64,16 @@ contract dVPN is Ownable{
 		return connections[connectionId].id != 0 && connections[connectionId].endedAt == 0;
 	}
 
+	// todo return right affordableTime
+	// todo test
+	function getConnectionInfo(uint256 connectionId) public view returns(uint startedAt, uint affordableTime){
+		require(isConnected(connectionId)); // connection is finished or does not exist
+		Connection connection = connections[connectionId];
+		affordableTime = 0; // balanceOf[connection.clientAddress] / connection.pricePerHour * 3600;
+
+		return ( connection.startedAt, affordableTime );
+	}
+
 	function startConnection(uint256 connectionId, address serverAddress) public{
 		require(serverAnnounced(serverAddress)); // server isn't announced
 		require(!isConnected(connectionId)); // connection exists
