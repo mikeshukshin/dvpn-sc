@@ -13,6 +13,7 @@ contract('dVPN', function (accounts) {
     const value = new web3.BigNumber(web3.toWei(2, 'ether'));
     const transferValue = new web3.BigNumber(web3.toWei(1, 'ether'));
     const testPrice = new web3.BigNumber(web3.toWei(0.01, 'ether'));
+    const testPriceBig = new web3.BigNumber(web3.toWei(3600, 'ether'));
     const testTime = new BigNumber(3600 * 200);
     const rate = new BigNumber(1);
     let instance;
@@ -32,7 +33,7 @@ contract('dVPN', function (accounts) {
         let result = await instance.serverAnnounced.call(serverAddress);
         assert.equal(result.valueOf(), false, "server is announced initially");
 
-        await instance.announceServer(testIp, testPort, testPrice, {from: serverAddress});
+        await instance.announceServer(testIp, testPort, testPriceBig, {from: serverAddress});
         result = await instance.serverAnnounced.call(serverAddress);
         assert.equal(result.valueOf(), true, "server isn't announced");
 
@@ -43,7 +44,7 @@ contract('dVPN', function (accounts) {
         assert.equal(result[0].valueOf(), serverAddress, "server address differs");
         assert.equal(result[1].valueOf(), testIp, "server ip differs");
         assert.equal(result[2].valueOf(), testPort, "server port differs");
-        assert.equal(result[3].valueOf(), testPrice, "server price differs");
+        assert.equal(result[3].valueOf(), testPriceBig, "server price differs");
     });
 
     it("should start connection", async function () {
@@ -70,6 +71,7 @@ contract('dVPN', function (accounts) {
     });
 
     it("should stop connection from server", async function () {
+        await instance.sendTransaction({ value: value, from: clientAddress });
         let testConnectionId = Math.round(Math.random() * 1e9 + 1e9);
         let result = await instance.serverAnnounced.call(serverAddress);
         assert.equal(result.valueOf(), true, "server is not announced");
@@ -82,11 +84,19 @@ contract('dVPN', function (accounts) {
         result = await instance.isConnected.call(testConnectionId);
         assert.equal(result.valueOf(), true, "connection is not activated");
 
-
+        await new Promise(resolve => {setTimeout(resolve, 1000)});
         await instance.stopConnection(testConnectionId, {from: serverAddress});
-
         result = await instance.isConnected.call(testConnectionId);
         assert.equal(result.valueOf(), false, "connection is still activated");
+
+        let clientBalance = await instance.balanceOf.call(clientAddress);
+        let serverBalance = await instance.balanceOf.call(serverAddress);
+        clientBalance.should.be.bignumber.equal(rate.mul(transferValue));
+        serverBalance.should.be.bignumber.equal(rate.mul(transferValue));
+        //assert.equal(result.valueOf(), false, "connection is still activated");
+
+        await instance.withdraw({from: clientAddress});
+        await instance.withdraw({from: serverAddress});
     });
 
     it("should deannounce server", async function () {
@@ -107,6 +117,7 @@ contract('dVPN', function (accounts) {
         let result = await instance.getConnectionInfo.call(testConnectionId);
         result.should.be.an('array');
         result[1].should.be.bignumber.equal(testTime);
+        await instance.stopConnection(testConnectionId, {from: clientAddress});
         await instance.withdraw({from: clientAddress});
     });
 
@@ -122,7 +133,9 @@ contract('dVPN', function (accounts) {
     });
 
     it('should withdraw payments', async function () {
+        //await instance.startConnection(testConnectionId, serverAddress, {from: clientAddress});
         await instance.withdraw({from: clientAddress});
+        //await instance.stopConnection(testConnectionId, {from: clientAddress});
         let balance = await instance.balanceOf.call(clientAddress);
         const moneyAddress = await dVPN.address;
         let contractBalance = web3.eth.getBalance(moneyAddress);

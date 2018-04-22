@@ -11,13 +11,29 @@ contract dVPN is Ownable{
 		uint listPointer;
 	}
 
+	modifier whenNoOpenConnections (address client) {
+		//require(msg.sender == owner);
+		uint arrayLength = connectionIds.length;
+		for (uint i=0; i<arrayLength; i++) {
+			if (connections[connectionIds[i]].clientAddress == client){
+				require(!isConnected(connectionIds[i]));
+			}
+		}
+		_;
+	}
+
+	using SafeMath for uint256;
+
 	mapping(address => Server) private servers;
 	address[] private serverAddresses;
+	uint256[] private connectionIds;
 
 	function serverAnnounced(address serverAddress) public view returns(bool) {
 		if(serverAddresses.length == 0) return false;
 		return (serverAddresses[servers[serverAddress].listPointer] == serverAddress);
 	}
+
+
 
 	function getServerCount() public view returns(uint){
 		return serverAddresses.length;
@@ -76,7 +92,7 @@ contract dVPN is Ownable{
 	function startConnection(uint256 connectionId, address serverAddress) public{
 		require(serverAnnounced(serverAddress)); // server isn't announced
 		require(!isConnected(connectionId)); // connection exists
-
+		connectionIds.push(connectionId);
 		connections[connectionId] = Connection(
 			connectionId,
 			tx.origin,
@@ -87,17 +103,33 @@ contract dVPN is Ownable{
 		);
 	}
 
-	function stopConnection(uint256 connectionId) public {
+	function stopConnection(uint256 connectionId) public{
 		require(isConnected(connectionId)); // connection doesn't exist
 		require(connections[connectionId].endedAt == 0); //connection has not ended
 		require(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
+		Connection connection = connections[connectionId];
+		connection.endedAt = block.timestamp;
 
-		connections[connectionId].endedAt = block.timestamp;
+		uint256 timeSpent = connection.endedAt.sub(connection.startedAt);
+		uint256 moneyRaised = timeSpent.mul(connection.pricePerHour).div(3600);
+
+		//transferFrom(connection.clientAddress, connection.serverAddress, moneyRaised);
+		address _from = connection.clientAddress;
+		address _to = connection.serverAddress;
+		uint256 _value = moneyRaised;
+		require(_to != address(0));
+		require(_from != address(0));
+		require(_value <= balances[_from]);
+
+		balances[_from] = balances[_from].sub(_value);
+		balances[_to] = balances[_to].add(_value);
+		emit Transfer(_from, _to, _value);
+		//return (timeSpent, moneyRaised, balance);
 	}
 
 
 	//money stuff
-	using SafeMath for uint256;
+
 
 	mapping(address => uint256) balances;
 	event Transfer(address indexed from, address indexed to, uint256 value);
@@ -106,7 +138,7 @@ contract dVPN is Ownable{
 		balances[msg.sender] = balances[msg.sender].add(msg.value);
 	}
 
-	function withdraw () public {
+	function withdraw ()  whenNoOpenConnections(msg.sender) public {
 		address payee = msg.sender;
 		uint256 payment = balances[payee];
 
@@ -129,6 +161,7 @@ contract dVPN is Ownable{
 
 	function transferFrom(address _from, address _to, uint256 _value) onlyOwner public {
 		require(_to != address(0));
+		require(_from != address(0));
 		require(_value <= balances[_from]);
 
 		balances[_from] = balances[_from].sub(_value);
