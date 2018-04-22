@@ -14,9 +14,9 @@ contract dVPN is Ownable{
 	mapping(address => Server) private servers;
 	address[] private serverAddresses;
 
-	function serverAnnounced(address entityAddress) public view returns(bool) {
+	function serverAnnounced(address serverAddress) public view returns(bool) {
 		if(serverAddresses.length == 0) return false;
-		return (serverAddresses[servers[entityAddress].listPointer] == entityAddress);
+		return (serverAddresses[servers[serverAddress].listPointer] == serverAddress);
 	}
 
 	function getServerCount() public view returns(uint){
