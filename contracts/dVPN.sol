@@ -88,13 +88,12 @@ contract dVPN is Ownable{
 		);
 	}
 
-	function stopConnection(uint256 connectionId) public returns (uint){
+	function stopConnection(uint256 connectionId) public {
 		require(isConnected(connectionId)); // connection doesn't exist
 		require(connections[connectionId].endedAt == 0); //connection has not ended
 		require(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
 
 		connections[connectionId].endedAt = block.timestamp;
-		return connections[connectionId].endedAt - connections[connectionId].startedAt;
 	}
 
 }

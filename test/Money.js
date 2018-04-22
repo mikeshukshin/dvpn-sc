@@ -10,6 +10,8 @@ const should = require('chai')
 contract('Money', function (accounts) {
     let serverAddress = accounts[0], clientAddress = accounts[1], thirdPartyAddress = accounts[2];
     const value = new web3.BigNumber(web3.toWei(2, 'ether'));
+    const transferValue = new web3.BigNumber(web3.toWei(1, 'ether'));
+    const rate = new BigNumber(1);
     let instance;
 
 
@@ -20,9 +22,49 @@ contract('Money', function (accounts) {
     it('should accept payments', async function () {
         await instance.sendTransaction({ value: value, from: clientAddress });
         let balance = await instance.balanceOf.call(clientAddress);
-        const rate = new BigNumber(1000);
         const expectedValue = rate.mul(value);
+        const moneyAddress = await Money.address;
+        let contractBalance = web3.eth.getBalance(moneyAddress).toNumber();
         balance.should.be.bignumber.equal(expectedValue);
+        contractBalance.should.be.bignumber.equal(expectedValue);
+    });
+
+    it('should withdraw payments', async function () {
+        await instance.withdraw({from: clientAddress});
+        let balance = await instance.balanceOf.call(clientAddress);
+        const moneyAddress = await Money.address;
+        let contractBalance = web3.eth.getBalance(moneyAddress);
+        balance.should.be.bignumber.equal(0);
+        contractBalance.should.be.bignumber.equal(0);
+    });
+
+    it('should transfer funds to another address', async function () {
+        const instance = await Money.deployed();
+        await instance.sendTransaction({ value: value, from: clientAddress });
+        await instance.transfer(thirdPartyAddress, transferValue, {from: clientAddress});
+        let clientBalance = await instance.balanceOf.call(clientAddress);
+        const moneyAddress = await Money.address;
+        let contractBalance = web3.eth.getBalance(moneyAddress);
+        let thirdPartyBalance = await instance.balanceOf.call(thirdPartyAddress);
+        clientBalance.should.be.bignumber.equal(rate.mul(transferValue));
+        contractBalance.should.be.bignumber.equal(rate.mul(value));
+        thirdPartyBalance.should.be.bignumber.equal(rate.mul(transferValue));
+    });
+
+    it('should transfer funds from one address to another address', async function () {
+        await instance.transferFrom(clientAddress, thirdPartyAddress, transferValue, {from: serverAddress});
+        let clientBalance = await instance.balanceOf.call(clientAddress);
+        const moneyAddress = await Money.address;
+        let contractBalance = web3.eth.getBalance(moneyAddress);
+        let thirdPartyBalance = await instance.balanceOf.call(thirdPartyAddress);
+        clientBalance.should.be.bignumber.equal(0);
+        contractBalance.should.be.bignumber.equal(rate.mul(value));
+        thirdPartyBalance.should.be.bignumber.equal(rate.mul(value));
+    });
+
+    it('balanceOf should return balance of user', async function () {
+        let thirdPartyBalance = await instance.balanceOf.call(thirdPartyAddress);
+        thirdPartyBalance.should.be.bignumber.equal(rate.mul(value));
     });
 
 
