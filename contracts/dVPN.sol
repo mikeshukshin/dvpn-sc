@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18;
 
-//import "./ConvertLib.sol";
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
 contract dVPN is Ownable{
 	struct Server {
@@ -64,14 +64,13 @@ contract dVPN is Ownable{
 		return connections[connectionId].id != 0 && connections[connectionId].endedAt == 0;
 	}
 
-	// todo return right affordableTime
-	// todo test
 	function getConnectionInfo(uint256 connectionId) public view returns(uint startedAt, uint affordableTime){
 		require(isConnected(connectionId)); // connection is finished or does not exist
 		Connection connection = connections[connectionId];
-		affordableTime = 0; // balanceOf[connection.clientAddress] / connection.pricePerHour * 3600;
-
-		return ( connection.startedAt, affordableTime );
+		require(connection.clientAddress != address(0));
+		uint256 balance = balanceOf(connection.clientAddress);
+		affordableTime = balance / connection.pricePerHour * 3600;
+		return ( connection.startedAt, affordableTime);
 	}
 
 	function startConnection(uint256 connectionId, address serverAddress) public{
@@ -94,6 +93,51 @@ contract dVPN is Ownable{
 		require(connections[connectionId].clientAddress == tx.origin || connections[connectionId].serverAddress == tx.origin); //connection owned by 3rd party
 
 		connections[connectionId].endedAt = block.timestamp;
+	}
+
+
+	//money stuff
+	using SafeMath for uint256;
+
+	mapping(address => uint256) balances;
+	event Transfer(address indexed from, address indexed to, uint256 value);
+
+	function () payable {
+		balances[msg.sender] = balances[msg.sender].add(msg.value);
+	}
+
+	function withdraw () public {
+		address payee = msg.sender;
+		uint256 payment = balances[payee];
+
+		require(payment != 0);
+		require(address(this).balance >= payment);
+
+		balances[payee] = 0;
+		payee.transfer(payment);
+	}
+
+	function transfer(address _to, uint256 _value) public returns (bool) {
+		require(_to != address(0));
+		require(_value <= balances[msg.sender]);
+
+		balances[msg.sender] = balances[msg.sender].sub(_value);
+		balances[_to] = balances[_to].add(_value);
+		emit Transfer(msg.sender, _to, _value);
+		return true;
+	}
+
+	function transferFrom(address _from, address _to, uint256 _value) onlyOwner public {
+		require(_to != address(0));
+		require(_value <= balances[_from]);
+
+		balances[_from] = balances[_from].sub(_value);
+		balances[_to] = balances[_to].add(_value);
+		emit Transfer(_from, _to, _value);
+	}
+
+	function balanceOf(address _owner) public view returns (uint256) {
+		return balances[_owner];
 	}
 
 }
