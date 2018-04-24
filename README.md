@@ -4,6 +4,7 @@ Created by [Michael Astashkevich](https://t.me/asmisha) and [Alexander Solovev](
 
 ![alt text](http://barse.tk/michael.png "Michael")
 ![alt text](http://barse.tk/alex.png "Alex")
+![alt text](http://barse.tk/michael_and_alex.png "Alex And Michael")
 
 Demonstrational video: https://youtu.be/8GByOnHIQSw
 
